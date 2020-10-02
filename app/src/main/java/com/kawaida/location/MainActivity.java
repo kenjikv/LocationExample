@@ -5,22 +5,26 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.TextView;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.util.Date;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements GPSCallback {
 
     private TextView tvLongitude, tvLatitude, tvSpeed, tvHorizontalAccuracy, tvVerticalAccuracy,
-            tvBearing, tvTime;
+            tvBearing, tvTime, tvElapsed, tvTimeAccuracy;
 
     private GPSManager gpsManager = null;
     private double speed = 0.0;
@@ -44,6 +48,8 @@ public class MainActivity extends AppCompatActivity implements GPSCallback {
         tvVerticalAccuracy = findViewById(R.id.tvVerticalAccuracy);
         tvBearing = findViewById(R.id.tvBearing);
         tvTime = findViewById(R.id.tvTime);
+        tvElapsed = findViewById(R.id.tvElapsed);
+        tvTimeAccuracy = findViewById(R.id.tvTimeAccuracy);
 
         try {
             if (ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ) {
@@ -94,7 +100,9 @@ public class MainActivity extends AppCompatActivity implements GPSCallback {
         tvHorizontalAccuracy.setText(String.valueOf(location.getAccuracy()));
         tvVerticalAccuracy.setText(String.valueOf(location.getVerticalAccuracyMeters()));
         tvBearing.setText(String.valueOf(location.getBearing()));
-        tvTime.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS", Locale.US).format(new Date(location.getElapsedRealtimeNanos())));
+        tvTime.setText(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSSSSS", Locale.US).format(new Date(location.getTime())));
+        tvElapsed.setText(String.valueOf(age_ms(location)));
+        tvTimeAccuracy.setText(String.valueOf(location.getElapsedRealtimeUncertaintyNanos()));
     }
 
     private void storeToPrevious(Location l, float time) {
@@ -114,6 +122,26 @@ public class MainActivity extends AppCompatActivity implements GPSCallback {
         BigDecimal bd = new BigDecimal(unrounded);
         BigDecimal rounded = bd.setScale(precision, roundingMode);
         return rounded.doubleValue();
+    }
+
+    public int age_minutes(Location last) {
+        return (int) (age_ms(last) / (60*1000));
+    }
+
+    public long age_ms(Location last) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1)
+            return age_ms_api_17(last);
+        return age_ms_api_pre_17(last);
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+    private long age_ms_api_17(Location last) {
+        return (SystemClock.elapsedRealtimeNanos() - last
+                .getElapsedRealtimeNanos()) / 1000000;
+    }
+
+    private long age_ms_api_pre_17(Location last) {
+        return System.currentTimeMillis() - last.getTime();
     }
 
 //    public void getLocation(View view){
